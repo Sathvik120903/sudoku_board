@@ -6,6 +6,7 @@ let timerInterval = null;
 let elapsedSeconds = 0;
 let currentDifficulty = 'medium';
 let gameActive = false;
+let hintsUsed = 0;
 const STORAGE_KEY = 'sudoku_scores';
 const MAX_SCORES = 10;
 
@@ -45,13 +46,52 @@ function createBoardElement() {
       input.className = 'sudoku-cell';
       input.dataset.row = i;
       input.dataset.col = j;
-      input.addEventListener('input', (e) => {
-        const val = e.target.value.replace(/[^1-9]/g, '');
-        e.target.value = val;
-      });
+        input.addEventListener('input', (e) => {
+          const val = e.target.value.replace(/[^1-9]/g, '');
+          e.target.value = val;
+          // After each change, re-evaluate conflicts and toggle incorrect class
+          updateConflictHighlights();
+        });
       rowDiv.appendChild(input);
     }
     boardDiv.appendChild(rowDiv);
+  }
+}
+
+function updateConflictHighlights() {
+  const boardDiv = document.getElementById('sudoku-board');
+  const inputs = Array.from(boardDiv.getElementsByTagName('input'));
+
+  // clear previous incorrect marks
+  inputs.forEach(inp => inp.classList.remove('incorrect'));
+
+  const idxFromRC = (r, c) => r * SIZE + c;
+  const sameBlock = (r1, c1, r2, c2) => Math.floor(r1 / 3) === Math.floor(r2 / 3) && Math.floor(c1 / 3) === Math.floor(c2 / 3);
+
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      const idx = idxFromRC(r, c);
+      const inp = inputs[idx];
+      const val = inp.value;
+      if (!val) continue;
+
+      // check against all other cells
+      for (let rr = 0; rr < SIZE; rr++) {
+        for (let cc = 0; cc < SIZE; cc++) {
+          const oidx = idxFromRC(rr, cc);
+          if (oidx === idx) continue;
+          const other = inputs[oidx];
+          const oval = other.value;
+          if (!oval) continue;
+          const conflict = (rr === r) || (cc === c) || sameBlock(r, c, rr, cc);
+          if (conflict && oval === val) {
+            // mark both cells as incorrect
+            inp.classList.add('incorrect');
+            other.classList.add('incorrect');
+          }
+        }
+      }
+    }
   }
 }
 
@@ -80,6 +120,7 @@ function renderPuzzle(puz, sol) {
 
 async function newGame() {
   stopTimer();
+  hintsUsed = 0;
   const clues = parseInt(document.getElementById('difficulty').selectedOptions[0].dataset.clues);
   currentDifficulty = document.getElementById('difficulty').value;
   const res = await fetch(`/new?clues=${clues}`);
@@ -116,13 +157,21 @@ async function checkSolution() {
     msg.innerText = data.error;
     return;
   }
-  const incorrect = new Set(data.incorrect.map(x => x[0]*SIZE + x[1]));
+  // Only treat filled cells as candidates for incorrect highlighting
+  const incorrect = new Set(data.incorrect
+    .map(x => x[0]*SIZE + x[1])
+    .filter(idx => {
+      const inp = inputs[idx];
+      return inp && inp.value !== '' && inp.value !== '0';
+    })
+  );
+
   for (let idx = 0; idx < inputs.length; idx++) {
     const inp = inputs[idx];
     if (inp.disabled) continue;
-    inp.className = 'sudoku-cell';
+    inp.classList.remove('incorrect');
     if (incorrect.has(idx)) {
-      inp.className = 'sudoku-cell incorrect';
+      inp.classList.add('incorrect');
     }
   }
   if (incorrect.size === 0) {
@@ -146,12 +195,13 @@ function saveScores(scores) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(scores));
 }
 
-function addScore(name, time, difficulty) {
+function addScore(name, time, difficulty, hints) {
   const scores = getScores();
   scores.push({
     name: name.trim() || 'Anonymous',
     time: time,
     difficulty: difficulty,
+    hints: hints || 0,
     timestamp: new Date().toISOString()
   });
   
@@ -166,21 +216,43 @@ function addScore(name, time, difficulty) {
 function displayScoreboard() {
   const scores = getScores();
   const tbody = document.getElementById('scores-body');
+  // render securely, avoid innerHTML for user-controlled fields
   tbody.innerHTML = '';
-  
   if (scores.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">No scores yet. Complete a puzzle!</td></tr>';
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.colSpan = 5;
+    td.style.textAlign = 'center';
+    td.textContent = 'No scores yet. Complete a puzzle!';
+    tr.appendChild(td);
+    tbody.appendChild(tr);
     return;
   }
-  
+
   scores.forEach((score, idx) => {
     const row = document.createElement('tr');
-    row.innerHTML = `
-      <td>${idx + 1}</td>
-      <td>${score.name}</td>
-      <td>${formatTime(score.time)}</td>
-      <td>${score.difficulty.charAt(0).toUpperCase() + score.difficulty.slice(1)}</td>
-    `;
+
+    const tdRank = document.createElement('td');
+    tdRank.textContent = String(idx + 1);
+
+    const tdName = document.createElement('td');
+    tdName.textContent = score.name;
+
+    const tdTime = document.createElement('td');
+    tdTime.textContent = formatTime(score.time);
+
+    const tdDiff = document.createElement('td');
+    tdDiff.textContent = score.difficulty.charAt(0).toUpperCase() + score.difficulty.slice(1);
+
+    const tdHints = document.createElement('td');
+    tdHints.textContent = String(score.hints || 0);
+
+    row.appendChild(tdRank);
+    row.appendChild(tdName);
+    row.appendChild(tdTime);
+    row.appendChild(tdDiff);
+    row.appendChild(tdHints);
+
     tbody.appendChild(row);
   });
 }
@@ -239,7 +311,11 @@ async function giveHint() {
   const hint = emptyCells[Math.floor(Math.random() * emptyCells.length)];
   inputs[hint.idx].value = solution[hint.row][hint.col];
   inputs[hint.idx].disabled = true;
-  inputs[hint.idx].className = 'sudoku-cell hint';
+  inputs[hint.idx].classList.add('hint');
+  // increment hints used for this game
+  hintsUsed = (hintsUsed || 0) + 1;
+  // update conflicts after applying a hint
+  updateConflictHighlights();
 }
 
 // Wire buttons and events
@@ -272,7 +348,7 @@ window.addEventListener('load', () => {
   // Score modal handlers
   document.getElementById('save-score').addEventListener('click', () => {
     const name = document.getElementById('player-name').value;
-    addScore(name, elapsedSeconds, currentDifficulty);
+    addScore(name, elapsedSeconds, currentDifficulty, hintsUsed);
     hideScoreModal();
   });
   
