@@ -188,11 +188,11 @@ body.dark-mode {
 }
 
 .bg-gray {
-    background-color: var(--sudoku-bg-a) !important;
+  background-color: #e2e8f0; /* Or whatever gray you prefer */
 }
 
 .bg-white {
-    background-color: var(--sudoku-bg-b) !important;
+  background-color: #ffffff; /* Or transparent, depending on your theme */
 }
 
 /* Ensure prefilled, incorrect, and hint states override sub-grid colors */
