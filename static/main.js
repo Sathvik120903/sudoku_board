@@ -56,6 +56,8 @@ function createBoardElement() {
     }
     boardDiv.appendChild(rowDiv);
   }
+  // Apply checkerboard backgrounds after creating cells
+  applySudokuCheckerboard(boardDiv);
 }
 
 function updateConflictHighlights() {
@@ -109,13 +111,45 @@ function renderPuzzle(puz, sol) {
       if (val !== 0) {
         inp.value = val;
         inp.disabled = true;
-        inp.className = 'sudoku-cell prefilled';
+        // preserve sudoku-cell class and add prefilled state
+        inp.classList.remove('bg-gray', 'bg-white');
+        inp.classList.add('sudoku-cell', 'prefilled');
       } else {
         inp.value = '';
         inp.disabled = false;
       }
     }
   }
+  // Reapply checkerboard classes because render may have adjusted cell classes
+  applySudokuCheckerboard(boardDiv);
+}
+
+/**
+ * Apply checkerboard background classes to each 3x3 block.
+ * Uses data-row and data-col attributes (0..8) on each cell.
+ * Formula for block index: Math.floor(row / 3) + Math.floor(col / 3)
+ * Even -> .bg-gray, Odd -> .bg-white
+ */
+function applySudokuCheckerboard(container, selector = '.sudoku-cell') {
+  if (!container) return;
+  const cells = container.querySelectorAll(selector);
+  cells.forEach(cell => {
+    const rowAttr = cell.dataset.row;
+    const colAttr = cell.dataset.col;
+    if (rowAttr == null || colAttr == null) return;
+    const row = Number(rowAttr);
+    const col = Number(colAttr);
+    if (!Number.isFinite(row) || !Number.isFinite(col)) return;
+
+    const blockIndex = Math.floor(row / 3) + Math.floor(col / 3);
+    if ((blockIndex % 2) === 0) {
+      cell.classList.add('bg-gray');
+      cell.classList.remove('bg-white');
+    } else {
+      cell.classList.add('bg-white');
+      cell.classList.remove('bg-gray');
+    }
+  });
 }
 
 async function newGame() {

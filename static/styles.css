@@ -161,60 +161,38 @@ h1 {
     color: var(--text-primary);
 }
 
-/* 3x3 Sub-grid Alternating Colors - Light backgrounds */
-.sudoku-row:nth-child(1) .sudoku-cell:nth-child(-n+3),
-.sudoku-row:nth-child(2) .sudoku-cell:nth-child(-n+3),
-.sudoku-row:nth-child(3) .sudoku-cell:nth-child(-n+3),
-.sudoku-row:nth-child(4) .sudoku-cell:nth-child(4),
-.sudoku-row:nth-child(4) .sudoku-cell:nth-child(5),
-.sudoku-row:nth-child(4) .sudoku-cell:nth-child(6),
-.sudoku-row:nth-child(5) .sudoku-cell:nth-child(4),
-.sudoku-row:nth-child(5) .sudoku-cell:nth-child(5),
-.sudoku-row:nth-child(5) .sudoku-cell:nth-child(6),
-.sudoku-row:nth-child(6) .sudoku-cell:nth-child(4),
-.sudoku-row:nth-child(6) .sudoku-cell:nth-child(5),
-.sudoku-row:nth-child(6) .sudoku-cell:nth-child(6),
-.sudoku-row:nth-child(7) .sudoku-cell:nth-child(7),
-.sudoku-row:nth-child(7) .sudoku-cell:nth-child(8),
-.sudoku-row:nth-child(7) .sudoku-cell:nth-child(9),
-.sudoku-row:nth-child(8) .sudoku-cell:nth-child(7),
-.sudoku-row:nth-child(8) .sudoku-cell:nth-child(8),
-.sudoku-row:nth-child(8) .sudoku-cell:nth-child(9),
-.sudoku-row:nth-child(9) .sudoku-cell:nth-child(7),
-.sudoku-row:nth-child(9) .sudoku-cell:nth-child(8),
-.sudoku-row:nth-child(9) .sudoku-cell:nth-child(9) {
-    background-color: var(--subgrid-light);
+/* 3x3 Sub-grid Alternating Colors - class-based checkerboard
+   Replaced the previous nth-child approach with dynamic classes
+   (.bg-gray / .bg-white). This prevents selector complexity and
+   makes colors deterministic when applied via JS.
+*/
+
+/* expose checkerboard colors via variables (use existing subgrid vars as defaults) */
+:root {
+    --sudoku-bg-a: var(--subgrid-dark, #f0f0f0); /* darker subgrid */
+    --sudoku-bg-b: var(--subgrid-light, #f9f9f9); /* lighter subgrid */
 }
 
-/* 3x3 Sub-grid Alternating Colors - Dark backgrounds */
-.sudoku-row:nth-child(1) .sudoku-cell:nth-child(4),
-.sudoku-row:nth-child(1) .sudoku-cell:nth-child(5),
-.sudoku-row:nth-child(1) .sudoku-cell:nth-child(6),
-.sudoku-row:nth-child(2) .sudoku-cell:nth-child(4),
-.sudoku-row:nth-child(2) .sudoku-cell:nth-child(5),
-.sudoku-row:nth-child(2) .sudoku-cell:nth-child(6),
-.sudoku-row:nth-child(3) .sudoku-cell:nth-child(4),
-.sudoku-row:nth-child(3) .sudoku-cell:nth-child(5),
-.sudoku-row:nth-child(3) .sudoku-cell:nth-child(6),
-.sudoku-row:nth-child(4) .sudoku-cell:nth-child(7),
-.sudoku-row:nth-child(4) .sudoku-cell:nth-child(8),
-.sudoku-row:nth-child(4) .sudoku-cell:nth-child(9),
-.sudoku-row:nth-child(5) .sudoku-cell:nth-child(7),
-.sudoku-row:nth-child(5) .sudoku-cell:nth-child(8),
-.sudoku-row:nth-child(5) .sudoku-cell:nth-child(9),
-.sudoku-row:nth-child(6) .sudoku-cell:nth-child(7),
-.sudoku-row:nth-child(6) .sudoku-cell:nth-child(8),
-.sudoku-row:nth-child(6) .sudoku-cell:nth-child(9),
-.sudoku-row:nth-child(7) .sudoku-cell:nth-child(1),
-.sudoku-row:nth-child(7) .sudoku-cell:nth-child(2),
-.sudoku-row:nth-child(7) .sudoku-cell:nth-child(3),
-.sudoku-row:nth-child(8) .sudoku-cell:nth-child(1),
-.sudoku-row:nth-child(8) .sudoku-cell:nth-child(2),
-.sudoku-row:nth-child(8) .sudoku-cell:nth-child(3),
-.sudoku-row:nth-child(9) .sudoku-cell:nth-child(1),
-.sudoku-row:nth-child(9) .sudoku-cell:nth-child(2),
-.sudoku-row:nth-child(9) .sudoku-cell:nth-child(3) {
-    background-color: var(--subgrid-dark);
+/* In dark mode the --subgrid-* variables are already overridden by body.dark-mode.
+   No extra dark-mode rules are required, but we ensure variables exist. */
+body.dark-mode {
+    --sudoku-bg-a: var(--subgrid-dark, #2a2a2a);
+    --sudoku-bg-b: var(--subgrid-light, #252525);
+}
+
+/* Make sure background changes do not affect layout (no layout shifts) */
+.sudoku-cell {
+    box-sizing: border-box;
+    background-clip: padding-box;
+    transition: background-color 120ms ease;
+}
+
+.bg-gray {
+    background-color: var(--sudoku-bg-a) !important;
+}
+
+.bg-white {
+    background-color: var(--sudoku-bg-b) !important;
 }
 
 /* Ensure prefilled, incorrect, and hint states override sub-grid colors */

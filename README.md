@@ -1,0 +1,1 @@
+python -m pytest tests/test_sudoku_logic.py
